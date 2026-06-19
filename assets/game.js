@@ -188,7 +188,7 @@ function respawn(map,type,avoid){
 }
 
 function renderBattle(s,idm){
- var pm=parseM(idm);var map=getMap(s,pm.mapId);var t=map.tiles[pm.r]&&map.tiles[pm.c];
+ var pm=parseM(idm);var map=getMap(s,pm.mapId);var t=map.tiles[pm.r]&&map.tiles[pm.r][pm.c];
  if(!t||t.type!=='monster'){backPanel(pm.mapId,'The monster is gone.');return;}
  var p=s.player;var m=MONSTERS[t.monster];
  if(p.stamina<1){var app0=document.getElementById('app');app0.innerHTML=hud(p)+'<div class="panel"><p class="hurt">Stamina depleted.</p><div class="row"><button class="btn" id="back">Back to map</button></div></div>';document.getElementById('back').onclick=function(){go({view:'maps',id:pm.mapId});};return;}
