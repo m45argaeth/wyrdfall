@@ -6,11 +6,11 @@ var DROP_CHANCE=0.25;
 
 function spr(key,emo){var u=(window.SPRITES&&window.SPRITES[key]);return u?'<img class="sp" src="'+u+'" alt="">':'<span class="emo">'+(emo||'')+'</span>';}
 function heroKey(cls){return 'cls_'+String(cls||'einherjar').toLowerCase().replace(/[^a-z0-9]/g,'');}
-function potionAmount(kind){if(kind==='hp')return 10+Math.floor(Math.random()*31);if(kind==='mana')return 8+Math.floor(Math.random()*23);return 1+Math.floor(Math.random()*5);}
+function potionAmount(p,kind){var max=kind==='hp'?p.hpMax:(kind==='mana'?p.manaMax:p.staminaMax);return Math.max(1,Math.round(max*(0.10+Math.random()*0.05)));}
 function applyPotion(p,kind,amt){if(kind==='hp'){p.hp=Math.min(p.hpMax,p.hp+amt);return '+'+amt+' HP';}if(kind==='mana'){p.mana=Math.min(p.manaMax,p.mana+amt);return '+'+amt+' Mana';}p.stamina=Math.min(p.staminaMax,p.stamina+amt);return '+'+amt+' Stamina';}
 
 function defaultSave(){
- return {player:{cls:'Einherjar',level:1,xp:0,base:{STR:6,DEX:3,END:9,RUN:2},hp:140,hpMax:140,mana:30,manaMax:30,stamina:20,staminaMax:20,gold:0,weaponBase:5,pet:false,pos:null,lastRegen:Date.now()},maps:{},usedSeeds:{}};
+ return {player:{cls:'Einherjar',level:1,xp:0,base:{STR:6,DEX:3,END:9,RUN:2},hp:140,hpMax:140,mana:30,manaMax:30,stamina:100,staminaMax:100,gold:0,weaponBase:5,pet:false,pos:null,lastRegen:Date.now()},maps:{},usedSeeds:{}};
 }
 function load(){try{var s=JSON.parse(localStorage.getItem(SAVE_KEY));if(!s)return defaultSave();if(!s.maps)s.maps={};if(!s.usedSeeds)s.usedSeeds={};return s;}catch(e){return defaultSave();}}
 function save(s){localStorage.setItem(SAVE_KEY,JSON.stringify(s));}
@@ -141,7 +141,7 @@ function moveTo(s,map,id,pos){
  var t=map.tiles[r][c];var p=s.player;
  if(t.drop){
   var kind=t.drop==='random'?DROP_KINDS[Math.floor(Math.random()*3)]:t.drop;
-  var amt=potionAmount(kind);var msg=applyPotion(p,kind,amt);
+  var amt=potionAmount(p,kind);var msg=applyPotion(p,kind,amt);
   delete t.drop;flash('🧪 '+msg);
  }
  save(s);renderMap(s,id);
@@ -215,7 +215,7 @@ function renderBattle(s,idm){
   var type=t.monster;
   map.tiles[pm.r][pm.c]={type:'sand'};
   p.pos={map:pm.mapId,r:pm.r,c:pm.c};
-  if(Math.random()<DROP_CHANCE){var dk=DROP_KINDS[Math.floor(Math.random()*3)];var amt=potionAmount(dk);var dmsg=applyPotion(p,dk,amt);reward+='<p class="dead">🧪 Looted a '+dk+' potion: '+dmsg+' (auto-collected).</p>';}
+  if(Math.random()<DROP_CHANCE){var dk=DROP_KINDS[Math.floor(Math.random()*3)];var amt=potionAmount(p,dk);var dmsg=applyPotion(p,dk,amt);reward+='<p class="dead">🧪 Looted a '+dk+' potion: '+dmsg+' (auto-collected).</p>';}
   respawn(map,type,{r:pm.r,c:pm.c});
   reward+='<p>'+m.name+' respawns elsewhere on this map. You now stand on its tile.</p>';
  }
