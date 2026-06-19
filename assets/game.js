@@ -1,6 +1,6 @@
 'use strict';
 var SAVE_KEY='wyrdfall_save_v1';
-var EMOJI={sand:'🟩',tree:'🌳',rock:'🪨',hill:'⛰️',wall:'🧱',npc:'🏛️',monster:'👹',drop:'🧪'};
+var EMOJI={sand:'🟩',tree:'🌳',rock:'🪨',hill:'⛰️',wall:'🧱',portal:'🌀',npc:'🏛️',monster:'👹',drop:'🧪'};
 var DROP_KINDS=['hp','mana','stamina'];
 var DROP_CHANCE=0.25;
 
@@ -86,7 +86,7 @@ function tileSprite(t){
  if(t.type==='rock')return spr('tile_rock',EMOJI.rock);
  if(t.type==='hill')return spr('tile_hill',EMOJI.hill);
  if(t.type==='wall')return spr('tile_wall',EMOJI.wall);
- if(t.type==='portal')return spr(t.dir==='up'?'portal_up':'portal_down',t.dir==='up'?'⬆️':'⬇️');
+ if(t.type==='portal')return spr('portal',EMOJI.portal);
  if(t.type==='monster')return spr(MONSTERS[t.monster].sprite,EMOJI.monster);
  if(t.type==='npc')return spr(NPCS[t.npc].sprite,EMOJI.npc);
  if(t.type==='sand'&&t.drop){var k=t.drop==='random'?null:t.drop;return k?spr('item_'+k,EMOJI.drop):'<span class="emo">'+EMOJI.drop+'</span>';}
@@ -188,7 +188,7 @@ function respawn(map,type,avoid){
 }
 
 function renderBattle(s,idm){
- var pm=parseM(idm);var map=getMap(s,pm.mapId);var t=map.tiles[pm.r]&&map.tiles[pm.r][pm.c];
+ var pm=parseM(idm);var map=getMap(s,pm.mapId);var t=map.tiles[pm.r]&&map.tiles[pm.c];
  if(!t||t.type!=='monster'){backPanel(pm.mapId,'The monster is gone.');return;}
  var p=s.player;var m=MONSTERS[t.monster];
  if(p.stamina<1){var app0=document.getElementById('app');app0.innerHTML=hud(p)+'<div class="panel"><p class="hurt">Stamina depleted.</p><div class="row"><button class="btn" id="back">Back to map</button></div></div>';document.getElementById('back').onclick=function(){go({view:'maps',id:pm.mapId});};return;}
