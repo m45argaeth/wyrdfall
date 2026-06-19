@@ -18,10 +18,11 @@ const NPCS={
 function _cell(code){
  if(code==='.')return{type:'sand'};
  if(code==='P')return{type:'sand',start:true};
- if(code==='X')return{type:'sand',drop:'random'};
+ if(code==='#')return{type:'void'};
  if(code==='T')return{type:'tree'};
  if(code==='R')return{type:'rock'};
  if(code==='H')return{type:'hill'};
+ if(code==='W')return{type:'wall'};
  if(code[0]==='N')return{type:'npc',npc:code.slice(2)};
  if(code[0]==='M')return{type:'monster',monster:code.slice(2)};
  if(code[0]==='U')return{type:'portal',dir:'up',target:code.slice(2)};
@@ -31,39 +32,47 @@ function _cell(code){
 function _grid(rows){return rows.map(function(r){return r.map(_cell);});}
 const MAPS={
  hub_midgard:{name:"Midgard's Last Refuge",route:'/maps?id=hub_midgard',kind:'safe',grid:_grid([
-  ['T','T','N:alchemist','N:vendor','N:healer','T','T'],
-  ['T','.','.','.','.','.','T'],
-  ['N:quest','.','.','.','.','.','N:storage'],
-  ['N:clan','.','.','P','.','.','N:rebirth'],
-  ['N:trainer','.','.','.','.','.','N:vendor'],
-  ['T','.','.','.','.','.','T'],
-  ['T','T','T','D:forest_01','T','T','T']
+  ['W','W','W','W','W','W','W','W','W'],
+  ['W','N:alchemist','.','.','N:vendor','.','.','N:healer','W'],
+  ['W','.','.','.','.','.','.','.','W'],
+  ['W','N:quest','.','.','P','.','.','N:storage','W'],
+  ['W','.','.','.','.','.','.','.','W'],
+  ['W','N:clan','.','.','.','.','.','N:rebirth','W'],
+  ['W','.','.','.','.','.','.','.','W'],
+  ['W','N:trainer','.','.','.','.','.','N:vendor','W'],
+  ['W','W','W','W','D:forest_01','W','W','W','W']
  ])},
- forest_01:{name:'Forest 1',route:'/maps?id=forest_01',kind:'combat',grid:_grid([
-  ['T','T','T','U:hub_midgard','T','T','T'],
-  ['T','.','T','.','M:gaunt_wolf','.','T'],
-  ['T','.','R','.','.','T','T'],
-  ['T','M:decayed_draugr','.','X','.','.','T'],
-  ['T','.','.','T','M:gaunt_wolf','.','T'],
-  ['T','.','M:decayed_draugr','.','.','.','T'],
-  ['T','T','T','D:forest_02','T','T','T']
+ forest_01:{name:'Whispering Pines',route:'/maps?id=forest_01',kind:'combat',grid:_grid([
+  ['#','#','T','T','U:hub_midgard','T','T','#','#'],
+  ['#','T','.','.','.','.','.','T','#'],
+  ['T','.','.','R','R','.','.','.','T'],
+  ['T','.','M:gaunt_wolf','.','.','.','M:decayed_draugr','.','T'],
+  ['.','.','.','.','.','.','.','.','.'],
+  ['T','.','R','.','.','.','R','.','T'],
+  ['T','.','M:decayed_draugr','.','.','.','M:gaunt_wolf','.','T'],
+  ['#','T','.','.','.','.','.','T','#'],
+  ['#','#','T','T','D:forest_02','T','T','#','#']
  ])},
- forest_02:{name:'Forest 2',route:'/maps?id=forest_02',kind:'combat',grid:_grid([
-  ['T','T','T','U:forest_01','T','T','T'],
-  ['T','M:draugr_warrior','.','.','H','.','T'],
-  ['T','.','R','M:draugr_warrior','.','M:ice_bear','T'],
-  ['T','.','.','X','.','.','T'],
-  ['T','M:ice_bear','.','H','.','M:draugr_warrior','T'],
-  ['T','.','.','.','R','.','T'],
-  ['T','T','T','D:city_ashenvalholl','T','T','T']
+ forest_02:{name:'Frostmaw Hollow',route:'/maps?id=forest_02',kind:'combat',grid:_grid([
+  ['#','#','T','T','U:forest_01','T','T','#','#'],
+  ['#','T','.','.','.','.','.','T','#'],
+  ['T','.','M:draugr_warrior','.','H','.','M:ice_bear','.','T'],
+  ['T','.','.','R','.','R','.','.','T'],
+  ['.','.','.','.','M:draugr_warrior','.','.','.','.'],
+  ['T','.','.','R','.','R','.','.','T'],
+  ['T','.','M:ice_bear','.','H','.','M:draugr_warrior','.','T'],
+  ['#','T','.','.','.','.','.','T','#'],
+  ['#','#','T','T','D:city_ashenvalholl','T','T','#','#']
  ])},
  city_ashenvalholl:{name:'Ashen Valholl',route:'/maps?id=city_ashenvalholl',kind:'safe',grid:_grid([
-  ['T','T','N:trainer','N:alchemist','N:vendor','T','T'],
-  ['T','.','.','.','.','.','T'],
-  ['N:healer','.','.','.','.','.','N:quest'],
-  ['N:storage','.','.','P','.','.','N:vendor'],
-  ['T','.','.','.','.','.','T'],
-  ['T','.','.','.','.','.','T'],
-  ['T','T','T','U:forest_02','T','T','T']
+  ['W','W','W','W','W','W','W','W','W'],
+  ['W','N:trainer','.','.','N:alchemist','.','.','N:vendor','W'],
+  ['W','.','.','.','.','.','.','.','W'],
+  ['W','N:healer','.','.','P','.','.','N:quest','W'],
+  ['W','.','.','.','.','.','.','.','W'],
+  ['W','N:storage','.','.','.','.','.','N:rebirth','W'],
+  ['W','.','.','.','.','.','.','.','W'],
+  ['W','N:clan','.','.','.','.','.','N:vendor','W'],
+  ['W','W','W','W','U:forest_02','W','W','W','W']
  ])}
 };

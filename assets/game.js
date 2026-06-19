@@ -1,7 +1,8 @@
 'use strict';
 var SAVE_KEY='wyrdfall_save_v1';
-var EMOJI={sand:'🟩',tree:'🌳',rock:'🪨',hill:'⛰️',npc:'🏛️',monster:'👹',drop:'🧪'};
+var EMOJI={sand:'🟩',tree:'🌳',rock:'🪨',hill:'⛰️',wall:'🧱',npc:'🏛️',monster:'👹',drop:'🧪'};
 var DROP_KINDS=['hp','mana','stamina'];
+var DROP_CHANCE=0.25;
 
 function spr(key,emo){var u=(window.SPRITES&&window.SPRITES[key]);return u?'<img class="sp" src="'+u+'" alt="">':'<span class="emo">'+(emo||'')+'</span>';}
 function heroKey(cls){return 'cls_'+String(cls||'einherjar').toLowerCase().replace(/[^a-z0-9]/g,'');}
@@ -37,7 +38,22 @@ function getMap(s,id){
  return s.maps[id];
 }
 
-function startPos(map){var sr=3,sc=3;map.tiles.forEach(function(row,r){row.forEach(function(t,c){if(t.start){sr=r;sc=c;}});});return{r:sr,c:sc};}
+function startPos(map){
+ var sr=-1,sc=-1;
+ map.tiles.forEach(function(row,r){row.forEach(function(t,c){if(t.start&&sr<0){sr=r;sc=c;}});});
+ if(sr<0)map.tiles.forEach(function(row,r){row.forEach(function(t,c){if(sr<0&&t.type==='sand'){sr=r;sc=c;}});});
+ if(sr<0){sr=Math.floor(map.tiles.length/2);sc=Math.floor(map.tiles[0].length/2);}
+ return{r:sr,c:sc};
+}
+
+function portalEntry(map,fromId){
+ var pr=-1,pc=-1;
+ map.tiles.forEach(function(row,r){row.forEach(function(t,c){if(t.type==='portal'&&t.target===fromId){pr=r;pc=c;}});});
+ if(pr<0)return null;
+ var dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+ for(var i=0;i<dirs.length;i++){var nr=pr+dirs[i][0],nc=pc+dirs[i][1];var row=map.tiles[nr];if(row&&row[nc]&&row[nc].type==='sand')return{r:nr,c:nc};}
+ return{r:pr,c:pc};
+}
 
 function seed(){return Math.random().toString(36).slice(2,10);}
 function go(params){var u=new URLSearchParams(params);u.set('r',seed());location.search=u.toString();}
@@ -67,6 +83,7 @@ function tileSprite(t){
  if(t.type==='tree')return spr('tile_tree',EMOJI.tree);
  if(t.type==='rock')return spr('tile_rock',EMOJI.rock);
  if(t.type==='hill')return spr('tile_hill',EMOJI.hill);
+ if(t.type==='wall')return spr('tile_wall',EMOJI.wall);
  if(t.type==='portal')return spr(t.dir==='up'?'portal_up':'portal_down',t.dir==='up'?'⬆️':'⬇️');
  if(t.type==='monster')return spr(MONSTERS[t.monster].sprite,EMOJI.monster);
  if(t.type==='npc')return spr(NPCS[t.npc].sprite,EMOJI.npc);
@@ -74,20 +91,25 @@ function tileSprite(t){
  return '';
 }
 
-function renderMap(s,id){
+function renderMap(s,id,from){
  if(!MAPS[id])id='hub_midgard';
  var map=getMap(s,id);var meta=MAPS[id];
- maybeDrop(map);
  var p=s.player;
- if(!p.pos||p.pos.map!==id){var sp=startPos(map);p.pos={map:id,r:sp.r,c:sp.c};}
+ if(!p.pos||p.pos.map!==id){
+  var ep=from?portalEntry(map,from):null;
+  var sp=ep||startPos(map);
+  p.pos={map:id,r:sp.r,c:sp.c};
+ }
  save(s);
  var app=document.getElementById('app');
  var sand=(window.SPRITES&&window.SPRITES.tile_sand);
  var hero=(window.SPRITES&&window.SPRITES[heroKey(p.cls)]);
+ var cols=map.tiles[0].length;
  var cells='';
  map.tiles.forEach(function(row,r){row.forEach(function(t,c){
+  if(t.type==='void'){cells+='<div class="cell void"></div>';return;}
   var cls='cell',data='';
-  if(t.type==='tree'||t.type==='rock'||t.type==='hill'){cls+=' block';}
+  if(t.type==='tree'||t.type==='rock'||t.type==='hill'||t.type==='wall'){cls+=' block';}
   else if(t.type==='portal'){cls+=' click';data='data-act="portal" data-target="'+t.target+'"';}
   else if(t.type==='monster'){cls+=' click';data='data-act="monster" data-pos="'+r+'-'+c+'"';}
   else if(t.type==='npc'){cls+=' click';data='data-act="npc" data-npc="'+t.npc+'"';}
@@ -96,28 +118,19 @@ function renderMap(s,id){
   if(p.pos&&p.pos.r===r&&p.pos.c===c){cls+=' is-hero';inner+=hero?'<img class="hero" src="'+hero+'" alt="You" title="You">':'<span class="hero emo">🧍</span>';}
   cells+='<div class="'+cls+'" '+data+' title="'+t.type+'">'+inner+'</div>';
  });});
- var gbg=sand?' style="background-image:url('+sand+')"':'';
+ var gstyle=' style="grid-template-columns:repeat('+cols+',var(--tile))'+(sand?';background-image:url('+sand+')':'')+'"';
  app.innerHTML=hud(p)+
   '<div class="maptitle">📍 <b>'+meta.name+'</b> · <code>'+meta.route+'&r='+seed()+'</code> · '+(meta.kind==='safe'?'🛟 Safe Zone':'⚔️ Combat Zone')+'</div>'+
-  '<div class="grid"'+gbg+'>'+cells+'</div>';
+  '<div class="grid"'+gstyle+'>'+cells+'</div>';
  app.querySelectorAll('.cell.click').forEach(function(cell){
   cell.addEventListener('click',function(){
    var act=cell.getAttribute('data-act');
-   if(act==='portal')go({view:'maps',id:cell.getAttribute('data-target')});
+   if(act==='portal')go({view:'maps',id:cell.getAttribute('data-target'),from:id});
    else if(act==='monster')go({view:'monster',id_monster:id+'-'+cell.getAttribute('data-pos')});
    else if(act==='npc')dialog(cell.getAttribute('data-npc'),s,id);
    else if(act==='sand')moveTo(s,map,id,cell.getAttribute('data-pos'));
   });
  });
-}
-
-function maybeDrop(map){
- var drops=0,empties=[];
- map.tiles.forEach(function(row,r){row.forEach(function(t,c){if(t.type==='sand'){if(t.drop)drops++;else empties.push([r,c]);}});});
- if(drops<1 && empties.length && Math.random()<0.6){
-  var pick=empties[Math.floor(Math.random()*empties.length)];
-  map.tiles[pick[0]][pick[1]].drop=DROP_KINDS[Math.floor(Math.random()*3)];
- }
 }
 
 function moveTo(s,map,id,pos){
@@ -170,7 +183,7 @@ function renderMonster(s,idm){
 
 function respawn(map,type){
  var empties=[];
- map.tiles.forEach(function(row,r){row.forEach(function(t,c){if(t.type==='sand'&&!t.drop)empties.push([r,c]);});});
+ map.tiles.forEach(function(row,r){row.forEach(function(t,c){if(t.type==='sand'&&!t.drop&&!t.start)empties.push([r,c]);});});
  if(empties.length){var pick=empties[Math.floor(Math.random()*empties.length)];map.tiles[pick[0]][pick[1]]={type:'monster',monster:type,hp:MONSTERS[type].hp};}
 }
 
@@ -199,8 +212,10 @@ function renderBattle(s,idm){
   var g=m.gold[0]+Math.floor(Math.random()*(m.gold[1]-m.gold[0]+1));
   p.xp+=m.xp;p.gold+=g;reward='<p class="dead">+'+m.xp+' XP, +'+g+' Gull.</p>';
   while(p.xp>=xpToNext(p.level)){p.xp-=xpToNext(p.level);p.level++;reward+='<p class="dead">⬆️ Leveled up to Lv '+p.level+'!</p>';}
-  var type=t.monster;map.tiles[pm.r][pm.c]={type:'sand'};respawn(map,type);
-  reward+='<p>'+m.name+' respawns on another empty tile.</p>';
+  var type=t.monster;map.tiles[pm.r][pm.c]={type:'sand'};
+  if(Math.random()<DROP_CHANCE){var dk=DROP_KINDS[Math.floor(Math.random()*3)];map.tiles[pm.r][pm.c].drop=dk;reward+='<p class="dead">🧪 It dropped a '+dk+' potion — walk over the tile to grab it.</p>';}
+  respawn(map,type);
+  reward+='<p>'+m.name+' respawns elsewhere on this map.</p>';
  }
  save(s);
  var app=document.getElementById('app');
@@ -221,7 +236,7 @@ function render(){
  var q=new URLSearchParams(location.search);var view=q.get('view')||'maps';
  if(view==='monster')renderMonster(s,q.get('id_monster'));
  else if(view==='battle')renderBattle(s,q.get('id_monster'));
- else renderMap(s,q.get('id')||'hub_midgard');
+ else renderMap(s,q.get('id')||'hub_midgard',q.get('from'));
 }
 document.addEventListener('DOMContentLoaded',function(){
  var rb=document.getElementById('reset');

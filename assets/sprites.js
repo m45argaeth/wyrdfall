@@ -5,6 +5,7 @@ window.SPRITES={
  tile_tree:'sprites/tiles/tree.webp',
  tile_rock:'sprites/tiles/rock.webp',
  tile_hill:'sprites/tiles/hill.webp',
+ tile_wall:'sprites/tiles/wall.webp',
  portal_up:'sprites/tiles/portal_up.webp',
  portal_down:'sprites/tiles/portal_down.webp',
  mon_gaunt_wolf:'sprites/monsters/gaunt_wolf.webp',
