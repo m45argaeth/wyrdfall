@@ -1,12 +1,13 @@
 'use strict';
 var SAVE_KEY='wyrdfall_save_v1';
-var EMOJI={sand:'🟨',tree:'🌳',rock:'🪨',hill:'⛰️',npc:'🏛️',monster:'👹',drop:'🧪'};
+var EMOJI={sand:'🟩',tree:'🌳',rock:'🪨',hill:'⛰️',npc:'🏛️',monster:'👹',drop:'🧪'};
 var DROP_KINDS=['hp','mana','stamina'];
 
 function spr(key,emo){var u=(window.SPRITES&&window.SPRITES[key]);return u?'<img class="sp" src="'+u+'" alt="">':'<span class="emo">'+(emo||'')+'</span>';}
+function heroKey(cls){return 'cls_'+String(cls||'einherjar').toLowerCase().replace(/[^a-z0-9]/g,'');}
 
 function defaultSave(){
- return {player:{cls:'Einherjar',level:1,xp:0,base:{STR:6,DEX:3,END:9,RUN:2},hp:140,hpMax:140,mana:30,manaMax:30,stamina:20,staminaMax:20,gold:0,weaponBase:5,pet:false,lastRegen:Date.now()},maps:{},usedSeeds:{}};
+ return {player:{cls:'Einherjar',level:1,xp:0,base:{STR:6,DEX:3,END:9,RUN:2},hp:140,hpMax:140,mana:30,manaMax:30,stamina:20,staminaMax:20,gold:0,weaponBase:5,pet:false,pos:null,lastRegen:Date.now()},maps:{},usedSeeds:{}};
 }
 function load(){try{var s=JSON.parse(localStorage.getItem(SAVE_KEY));if(!s)return defaultSave();if(!s.maps)s.maps={};if(!s.usedSeeds)s.usedSeeds={};return s;}catch(e){return defaultSave();}}
 function save(s){localStorage.setItem(SAVE_KEY,JSON.stringify(s));}
@@ -35,6 +36,8 @@ function getMap(s,id){
  }
  return s.maps[id];
 }
+
+function startPos(map){var sr=3,sc=3;map.tiles.forEach(function(row,r){row.forEach(function(t,c){if(t.start){sr=r;sc=c;}});});return{r:sr,c:sc};}
 
 function seed(){return Math.random().toString(36).slice(2,10);}
 function go(params){var u=new URLSearchParams(params);u.set('r',seed());location.search=u.toString();}
@@ -74,9 +77,13 @@ function tileSprite(t){
 function renderMap(s,id){
  if(!MAPS[id])id='hub_midgard';
  var map=getMap(s,id);var meta=MAPS[id];
- maybeDrop(map);save(s);
+ maybeDrop(map);
+ var p=s.player;
+ if(!p.pos||p.pos.map!==id){var sp=startPos(map);p.pos={map:id,r:sp.r,c:sp.c};}
+ save(s);
  var app=document.getElementById('app');
  var sand=(window.SPRITES&&window.SPRITES.tile_sand);
+ var hero=(window.SPRITES&&window.SPRITES[heroKey(p.cls)]);
  var cells='';
  map.tiles.forEach(function(row,r){row.forEach(function(t,c){
   var cls='cell',data='';
@@ -85,19 +92,21 @@ function renderMap(s,id){
   else if(t.type==='monster'){cls+=' click';data='data-act="monster" data-pos="'+r+'-'+c+'"';}
   else if(t.type==='npc'){cls+=' click';data='data-act="npc" data-npc="'+t.npc+'"';}
   else {cls+=' click';data='data-act="sand" data-pos="'+r+'-'+c+'"';}
-  var bg=sand?' style="background-image:url('+sand+')"':'';
-  cells+='<div class="'+cls+'"'+bg+' '+data+' title="'+t.type+'">'+tileSprite(t)+'</div>';
+  var inner=tileSprite(t);
+  if(p.pos&&p.pos.r===r&&p.pos.c===c){cls+=' is-hero';inner+=hero?'<img class="hero" src="'+hero+'" alt="You" title="You">':'<span class="hero emo">🧍</span>';}
+  cells+='<div class="'+cls+'" '+data+' title="'+t.type+'">'+inner+'</div>';
  });});
- app.innerHTML=hud(s.player)+
+ var gbg=sand?' style="background-image:url('+sand+')"':'';
+ app.innerHTML=hud(p)+
   '<div class="maptitle">📍 <b>'+meta.name+'</b> · <code>'+meta.route+'&r='+seed()+'</code> · '+(meta.kind==='safe'?'🛟 Safe Zone':'⚔️ Combat Zone')+'</div>'+
-  '<div class="grid">'+cells+'</div>';
+  '<div class="grid"'+gbg+'>'+cells+'</div>';
  app.querySelectorAll('.cell.click').forEach(function(cell){
   cell.addEventListener('click',function(){
    var act=cell.getAttribute('data-act');
    if(act==='portal')go({view:'maps',id:cell.getAttribute('data-target')});
    else if(act==='monster')go({view:'monster',id_monster:id+'-'+cell.getAttribute('data-pos')});
    else if(act==='npc')dialog(cell.getAttribute('data-npc'),s,id);
-   else if(act==='sand')pickup(s,map,id,cell.getAttribute('data-pos'));
+   else if(act==='sand')moveTo(s,map,id,cell.getAttribute('data-pos'));
   });
  });
 }
@@ -111,15 +120,18 @@ function maybeDrop(map){
  }
 }
 
-function pickup(s,map,id,pos){
- var rc=pos.split('-');var r=+rc[0],c=+rc[1];var t=map.tiles[r][c];
- if(!t.drop){flash('Empty ground.');return;}
- var kind=t.drop==='random'?DROP_KINDS[Math.floor(Math.random()*3)]:t.drop;
- var p=s.player;var msg='';
- if(kind==='hp'){var v=Math.round(p.hpMax*0.3);p.hp=Math.min(p.hpMax,p.hp+v);msg='+'+v+' HP';}
- else if(kind==='mana'){var vm=Math.round(p.manaMax*0.3);p.mana=Math.min(p.manaMax,p.mana+vm);msg='+'+vm+' Mana';}
- else {p.stamina=Math.min(p.staminaMax,p.stamina+3);msg='+3 Stamina';}
- delete t.drop;save(s);flash('🧪 '+msg);renderMap(s,id);
+function moveTo(s,map,id,pos){
+ var rc=pos.split('-');var r=+rc[0],c=+rc[1];
+ s.player.pos={map:id,r:r,c:c};
+ var t=map.tiles[r][c];var p=s.player;
+ if(t.drop){
+  var kind=t.drop==='random'?DROP_KINDS[Math.floor(Math.random()*3)]:t.drop;var msg='';
+  if(kind==='hp'){var v=Math.round(p.hpMax*0.3);p.hp=Math.min(p.hpMax,p.hp+v);msg='+'+v+' HP';}
+  else if(kind==='mana'){var vm=Math.round(p.manaMax*0.3);p.mana=Math.min(p.manaMax,p.mana+vm);msg='+'+vm+' Mana';}
+  else {p.stamina=Math.min(p.staminaMax,p.stamina+3);msg='+3 Stamina';}
+  delete t.drop;flash('🧪 '+msg);
+ }
+ save(s);renderMap(s,id);
 }
 
 function dialog(key,s,mapId){
